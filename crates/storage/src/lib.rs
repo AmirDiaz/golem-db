@@ -110,7 +110,7 @@ pub trait WriteTransaction: ReadTransaction {
     /// True only when no tables or rows exist in this writer's snapshot.
     /// Initialization must make this check under the same writer as its writes.
     /// Adapters that cannot inspect the catalogue must fail, never assume empty.
-    fn is_pristine(&self) -> Result<bool> {
+    fn is_empty(&self) -> Result<bool> {
         Err(StorageError::Backend(
             "backend cannot inspect its table catalogue".into(),
         ))

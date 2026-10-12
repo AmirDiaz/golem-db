@@ -184,7 +184,7 @@ fn modes(db: impl Store + Clone + Send + Sync + 'static) {
         Database::from_store(db.clone(), &config.with_mode(OpenMode::ExistingOnly)),
         Err(OpenError::NotInitialized)
     ));
-    assert!(db.begin_write().unwrap().is_pristine().unwrap());
+    assert!(db.begin_write().unwrap().is_empty().unwrap());
     let opened = Database::from_store(db.clone(), &config.with_mode(OpenMode::CreateNew)).unwrap();
     assert!(opened.info().created);
     let before = snapshot(&db);
@@ -487,7 +487,7 @@ fn mdbx_modes_limits_and_shared_environment_concurrent_opening() {
         Database::from_store(db.clone(), &cfg),
         Err(OpenError::InvalidConfig(_))
     ));
-    assert!(db.begin_write().unwrap().is_pristine().unwrap());
+    assert!(db.begin_write().unwrap().is_empty().unwrap());
     cfg.genesis.cell_limits.max_str_len =
         db.max_key_size() as u32 - cfg.genesis.cell_limits.max_cell_name_len - 2;
     Database::from_store(db.clone(), &cfg).unwrap();
@@ -505,7 +505,7 @@ fn mdbx_modes_limits_and_shared_environment_concurrent_opening() {
 }
 
 #[test]
-fn mdbx_foreign_tables_even_when_empty_are_not_pristine_storage() {
+fn mdbx_existing_empty_tables_prevent_initialization() {
     for delete in [false, true] {
         let dir = tempfile::tempdir().unwrap();
         let db = golemdb_storage_mdbx::MdbxStore::open(dir.path()).unwrap();
@@ -514,7 +514,7 @@ fn mdbx_foreign_tables_even_when_empty_are_not_pristine_storage() {
         if delete {
             tx.delete(Table("Foreign"), b"key").unwrap();
         }
-        assert!(!tx.is_pristine().unwrap());
+        assert!(!tx.is_empty().unwrap());
         tx.commit().unwrap();
         assert!(matches!(
             Database::from_store(db.clone(), &config()),

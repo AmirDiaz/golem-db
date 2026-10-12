@@ -245,7 +245,7 @@ impl MdbxWriteTransaction<'_> {
 }
 
 impl WriteTransaction for MdbxWriteTransaction<'_> {
-    fn is_pristine(&self) -> Result<bool> {
+    fn is_empty(&self) -> Result<bool> {
         let catalog = self.inner.open_table(None).map_err(backend)?;
         Ok(self.inner.table_stat(&catalog).map_err(backend)?.entries() == 0)
     }

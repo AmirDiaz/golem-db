@@ -115,7 +115,7 @@ impl ReadTransaction for MemoryWriteTransaction<'_> {
 }
 
 impl WriteTransaction for MemoryWriteTransaction<'_> {
-    fn is_pristine(&self) -> Result<bool> {
+    fn is_empty(&self) -> Result<bool> {
         Ok(self.state.is_empty())
     }
 

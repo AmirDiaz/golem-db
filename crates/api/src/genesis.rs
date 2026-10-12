@@ -84,7 +84,7 @@ pub(crate) fn prepare(
     let cells = initial_cells(&config.genesis);
     let genesis_id = identity(&config.genesis, &cells, hasher);
     if tx.get(SUPERBLOCK, b"head")?.is_none() {
-        if !tx.is_pristine()? {
+        if !tx.is_empty()? {
             return Err(OpenError::CorruptState(
                 "storage contains tables or rows but has no head",
             ));

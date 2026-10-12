@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::{OpenError, OpenResult};
 
 /// Immutable startup values written at commit zero and validated on reopening.
-/// Every YAML field is required; no admission
-/// limit or hash algorithm is silently selected by the opener.
+/// Every YAML field is required; no admission limit or hash algorithm is silently
+/// selected by the opener. Unknown fields are rejected so unsupported settings
+/// cannot be silently ignored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[non_exhaustive]
@@ -66,12 +67,12 @@ impl Genesis {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum OpenMode {
-    /// Initialize pristine storage, otherwise validate and reopen.
+    /// Initialize storage with no tables or rows, otherwise validate and reopen.
     #[default]
     CreateIfMissing,
     /// Require a complete initialized database. Never write genesis.
     ExistingOnly,
-    /// Require pristine storage. Existing directories alone do not imply a database.
+    /// Require storage with no tables or rows. An existing empty directory is allowed.
     CreateNew,
 }
 

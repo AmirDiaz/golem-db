@@ -118,8 +118,8 @@ impl<W> ControlledWrite<W> {
 }
 
 impl<W: WriteTransaction> WriteTransaction for ControlledWrite<W> {
-    fn is_pristine(&self) -> golemdb_storage::Result<bool> {
-        self.inner.is_pristine()
+    fn is_empty(&self) -> golemdb_storage::Result<bool> {
+        self.inner.is_empty()
     }
     fn put(&mut self, table: Table, key: &[u8], value: &[u8]) -> golemdb_storage::Result<()> {
         self.mutation()?;
@@ -158,7 +158,7 @@ fn failures(db: impl Store + Clone + Send + Sync + 'static) {
             error.to_string().contains("injected opening failure"),
             "{error}"
         );
-        assert!(db.begin_write().unwrap().is_pristine().unwrap());
+        assert!(db.begin_write().unwrap().is_empty().unwrap());
     }
     for step in [1, writes / 2, writes] {
         assert!(
@@ -169,7 +169,7 @@ fn failures(db: impl Store + Clone + Send + Sync + 'static) {
             .is_err()
         );
         // No partial rows or poisoned MemoryStore writer remain after panic.
-        assert!(db.begin_write().unwrap().is_pristine().unwrap());
+        assert!(db.begin_write().unwrap().is_empty().unwrap());
     }
     assert_eq!(
         *Database::from_store(db.clone(), &config()).unwrap().info(),
@@ -223,7 +223,7 @@ fn physical_limits_cover_full_index_keys_fixed_values_and_size_overflow() {
             Database::from_store(bounded, &cfg),
             Err(OpenError::InvalidConfig(_))
         ));
-        assert!(db.begin_write().unwrap().is_pristine().unwrap());
+        assert!(db.begin_write().unwrap().is_empty().unwrap());
     }
     let mut bounded = Controlled::new(MemoryStore::new(), Fault::None);
     bounded.max_key = 98;

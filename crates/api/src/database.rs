@@ -223,30 +223,38 @@ impl<S: Store, H: HashProvider> Api for Inner<S, H> {
 
     fn immutable_data_append(
         &self,
-        _: BranchId,
-        _: &str,
-        _: Option<ImmutableDataKey>,
-        _: ImmutableDataRow,
+        _branch: BranchId,
+        _segment: &str,
+        _key: Option<ImmutableDataKey>,
+        _row: ImmutableDataRow,
     ) -> Result<ImmutableDataOrdinal> {
         Err(ApiError::NotImplemented {
             operation: "immutable_data_append",
         })
     }
-    fn immutable_data_get(&self, _: &str, _: ImmutableDataAddress) -> Result<ImmutableDataRow> {
+    fn immutable_data_get(
+        &self,
+        _segment: &str,
+        _address: ImmutableDataAddress,
+    ) -> Result<ImmutableDataRow> {
         Err(ApiError::NotImplemented {
             operation: "immutable_data_get",
         })
     }
     fn immutable_data_range_of(
         &self,
-        _: &str,
-        _: CommitId,
+        _segment: &str,
+        _commit: CommitId,
     ) -> Result<std::ops::Range<ImmutableDataOrdinal>> {
         Err(ApiError::NotImplemented {
             operation: "immutable_data_range_of",
         })
     }
-    fn immutable_data_rows_of(&self, _: &str, _: CommitId) -> Result<Vec<ImmutableDataRow>> {
+    fn immutable_data_rows_of(
+        &self,
+        _segment: &str,
+        _commit: CommitId,
+    ) -> Result<Vec<ImmutableDataRow>> {
         Err(ApiError::NotImplemented {
             operation: "immutable_data_rows_of",
         })
