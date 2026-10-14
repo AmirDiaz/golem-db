@@ -59,7 +59,10 @@ pub use types::SealInfo;
 
 pub use golemdb_branch::{BranchId, BranchInfo, CommitId};
 pub use golemdb_cells::{CellKind, CellName, CellNameRef, CellType, CellValue, FloatWidth, Width};
-pub use golemdb_query::{Budget, CountOp, Direction, Filter, QueryOp, QueryPage, SortKey};
+pub use golemdb_query::{
+    Budget, CountOp, Direction, Filter, InValues, IntoCellValue, QueryOp, QueryPage, RangeBounds,
+    SortKey,
+};
 pub use golemdb_record::{ReadTarget, Record, RecordKey};
 
 /// Synchronous record and branch facade. Builders assist callers; implementations

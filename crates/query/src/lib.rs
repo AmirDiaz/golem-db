@@ -50,4 +50,7 @@ mod source;
 
 pub use error::{QueryError, Result};
 pub use queries::Queries;
-pub use query_op::{Budget, CountOp, Direction, Filter, QueryOp, QueryPage, SortKey};
+pub use query_op::{
+    Budget, CountOp, Direction, Filter, InValues, IntoCellValue, QueryOp, QueryPage, RangeBounds,
+    SortKey,
+};

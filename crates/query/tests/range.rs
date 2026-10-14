@@ -10,9 +10,10 @@ use std::{
     ops::Bound,
 };
 
-use golemdb_api::{ApiError, RecordKey};
+use golemdb_api::{ApiError, Filter, RecordKey};
 use golemdb_cells::{CellType, CellValue};
 use golemdb_index::TermError;
+use golemdb_query::QueryError;
 use proptest::prelude::*;
 use support::{
     TestDb, is_between, key, native_cmp, range, record, small_bounds_of_one_type, small_value,
@@ -264,33 +265,28 @@ fn names_sharing_a_prefix_are_distinct() {
 }
 
 #[test]
-fn malformed_range_is_an_invalid_query() {
+fn malformed_range_is_rejected_at_admission_or_construction() {
     let test = TestDb::default();
     test.create([record(key(1), &[("f", CellValue::from_i32(1))])]);
-    let i = CellValue::from_i32;
-    for filter in [
-        range("f", Bound::Unbounded, Bound::Unbounded),
-        range(
-            "f",
-            Bound::Included(i(1)),
-            Bound::Excluded(CellValue::from_i64(2)),
-        ),
-    ] {
-        assert!(
-            matches!(
-                test.keys(filter.clone()),
-                Err(ApiError::InvalidQuery { .. })
-            ),
-            "{filter:?}"
-        );
-        assert!(
-            matches!(
-                test.count(filter.clone()),
-                Err(ApiError::InvalidQuery { .. })
-            ),
-            "{filter:?}"
-        );
-    }
+    // A range with no bound at all is still an invalid query at admission.
+    let filter = range("f", Bound::Unbounded, Bound::Unbounded);
+    assert!(matches!(
+        test.keys(filter.clone()),
+        Err(ApiError::InvalidQuery { .. })
+    ));
+    assert!(matches!(
+        test.count(filter),
+        Err(ApiError::InvalidQuery { .. })
+    ));
+    // Bounds of two types no longer build: the runtime check moved into
+    // the constructor, so no query runs.
+    let field = support::field_name(b"f");
+    let mixed = Filter::try_range(
+        field,
+        Bound::Included(CellValue::from_i32(1)),
+        Bound::Excluded(CellValue::from_i64(2)),
+    );
+    assert!(matches!(mixed, Err(QueryError::InvalidQuery { .. })));
 }
 
 #[test]

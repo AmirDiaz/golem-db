@@ -75,6 +75,11 @@ pub fn eq(field: &str, value: CellValue) -> Filter {
     }
 }
 
+/// Raw, so tests can also build names the grammar rejects.
+pub fn field_name(field: &[u8]) -> golemdb_cells::CellName {
+    CellNameRef::raw(field).into()
+}
+
 fn f32_value(value: f32) -> CellValue {
     CellValue::from_f32(value).expect("not NaN")
 }
@@ -85,19 +90,17 @@ fn f64_value(value: f64) -> CellValue {
 
 /// Raw, so tests can also build names the grammar rejects.
 pub fn is_in(field: &str, values: impl IntoIterator<Item = CellValue>) -> Filter {
-    Filter::In {
-        field: CellNameRef::raw(field.as_bytes()).into(),
-        values: values.into_iter().collect(),
-    }
+    Filter::try_in(
+        CellNameRef::raw(field.as_bytes()).into(),
+        values.into_iter().collect(),
+    )
+    .expect("single-typed In")
 }
 
 /// Raw, so tests can also build names the grammar rejects.
 pub fn range(field: &str, lower: Bound<CellValue>, upper: Bound<CellValue>) -> Filter {
-    Filter::Range {
-        field: CellNameRef::raw(field.as_bytes()).into(),
-        lower,
-        upper,
-    }
+    Filter::try_range(CellNameRef::raw(field.as_bytes()).into(), lower, upper)
+        .expect("single-typed bounds")
 }
 
 /// Whether `value` lies between `lower` and `upper` in the native order of

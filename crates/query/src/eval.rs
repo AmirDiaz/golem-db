@@ -187,18 +187,12 @@ mod tests {
     }
 
     fn is_in(field: &str, values: impl IntoIterator<Item = CellValue>) -> Filter {
-        Filter::In {
-            field: name(field.as_bytes()),
-            values: values.into_iter().collect(),
-        }
+        Filter::try_in(name(field.as_bytes()), values.into_iter().collect())
+            .expect("single-typed In")
     }
 
     fn range(field: &str, lower: Bound<CellValue>, upper: Bound<CellValue>) -> Filter {
-        Filter::Range {
-            field: name(field.as_bytes()),
-            lower,
-            upper,
-        }
+        Filter::try_range(name(field.as_bytes()), lower, upper).expect("single-typed bounds")
     }
 
     fn str(value: &str) -> CellValue {
@@ -428,16 +422,12 @@ mod tests {
 
     #[test]
     fn malformed_range_is_rejected_before_reading() {
-        use Bound::{Excluded, Included, Unbounded};
-        let u = CellValue::from_u32;
-        for filter in [
-            range("a", Unbounded, Unbounded),
-            range("a", Included(u(1)), Included(CellValue::from_u64(2))),
-            range("a", Included(u(2)), Included(CellValue::from_u64(1))),
-            // The shape is checked before the field and the type.
-            range("1bad", Unbounded, Unbounded),
-            range("1bad", Included(u(1)), Excluded(str("x"))),
-        ] {
+        use Bound::Unbounded;
+        // Mixed bounds no longer build (see `filter`'s tests); the range
+        // that still fails admission is the one with no bound at all,
+        // even under a name the grammar rejects.
+        for field in ["a", "1bad"] {
+            let filter = range(field, Unbounded, Unbounded);
             assert!(
                 matches!(
                     evaluate(&FailingSource, &filter),
@@ -462,22 +452,6 @@ mod tests {
         ] {
             let matches = evaluate(&FailingSource, &filter).expect("filter evaluates");
             assert!(matches.treemap().is_empty(), "{filter:?}");
-        }
-    }
-
-    #[test]
-    fn malformed_in_is_rejected_before_reading() {
-        for filter in [
-            is_in("a", [CellValue::from_i32(1), CellValue::from_u32(1)]),
-            is_in("a", [str("x"), CellValue::from_bytes(b"x")]),
-        ] {
-            assert!(
-                matches!(
-                    evaluate(&FailingSource, &filter),
-                    Err(QueryError::InvalidQuery { .. })
-                ),
-                "{filter:?}"
-            );
         }
     }
 

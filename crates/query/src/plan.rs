@@ -29,29 +29,29 @@ pub(crate) enum Plan {
 impl TryFrom<&Filter> for Plan {
     type Error = QueryError;
 
-    /// Admission: fails with [`QueryError::InvalidArgument`] on a leaf with no
-    /// valid index term, and with [`QueryError::InvalidQuery`] on a malformed
-    /// leaf (an `In` whose values differ in type; a `Range` with no bound, or
-    /// bounds of two types). A leaf that admits no value is [`Plan::Empty`].
+    /// Admission: fails with [`QueryError::InvalidArgument`] on a leaf with
+    /// no valid index term, and with [`QueryError::InvalidQuery`] on a
+    /// malformed `Range` with no bound. A leaf that admits no value is
+    /// [`Plan::Empty`]. An `In`'s values and a `Range`'s bounds are
+    /// single-typed by construction (see [`Filter`]).
     fn try_from(filter: &Filter) -> Result<Self> {
         match filter {
             Filter::Eq { field, value } => Ok(Self::TermRead(term(field, value)?)),
             Filter::In { field, values } => {
-                Ok(terms(field, values)?.map_or(Self::Empty, Self::TermReads))
+                Ok(terms(field, values.as_slice())?.map_or(Self::Empty, Self::TermReads))
             }
-            Filter::Range {
-                field,
-                lower,
-                upper,
-            } => Ok(range(field, lower, upper)?.map_or(Self::Empty, Self::Scan)),
+            Filter::Range { field, bounds } => {
+                Ok(range(field, bounds.lower(), bounds.upper())?.map_or(Self::Empty, Self::Scan))
+            }
         }
     }
 }
 
 /// The terms of `field` between `lower` and `upper`, checked as
 /// [`TermRange::between`] checks them: a field or type with no index term
-/// fails as an `Eq` leaf's would, and a malformed range is an invalid query.
-/// `None` when the bounds admit no value.
+/// fails as an `Eq` leaf's would, and a range with no bound is an invalid
+/// query. `None` when the bounds admit no value. The bounds are of one
+/// type by construction (`RangeBounds`).
 fn range(
     field: &CellName,
     lower: &Bound<CellValue>,
@@ -74,22 +74,14 @@ fn range(
 }
 
 /// The terms of `field IN values`, sorted by key and deduplicated; `None`
-/// when there are no values. The list's shape is checked first, without
-/// building a term, then each value as an `Eq` leaf's would be. With no
+/// when there are no values. Each value is checked as an `Eq` leaf's would
+/// be; the values are of one type by construction (`InValues`). With no
 /// value, the field's name is still checked.
 fn terms(field: &CellName, values: &[CellValue]) -> Result<Option<BTreeSet<IndexTerm>>> {
-    let [first, rest @ ..] = values else {
+    if values.is_empty() {
         IndexTerm::check_cell_name(field.as_view())
             .map_err(|source| invalid_argument(field, source))?;
         return Ok(None);
-    };
-    if rest
-        .iter()
-        .any(|value| value.cell_type() != first.cell_type())
-    {
-        return Err(QueryError::InvalidQuery {
-            reason: "`In` values must all have one type",
-        });
     }
     values
         .iter()
@@ -198,36 +190,12 @@ mod tests {
     }
 
     #[test]
-    fn malformed_in_is_an_invalid_query() {
-        for values in [
-            vec![CellValue::from_i32(1), CellValue::from_i64(1)],
-            vec![
-                CellValue::from_u32(1),
-                CellValue::from_u32(2),
-                CellValue::from_dec32_unscaled(3),
-            ],
-        ] {
-            assert!(
-                matches!(in_terms(&values), Err(QueryError::InvalidQuery { .. })),
-                "{values:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn in_shape_is_checked_before_any_value() {
-        // A bytes value has no term, but the mixed types are reported first.
-        let result = in_terms(&[CellValue::from_str("x"), CellValue::from_bytes(b"x")]);
-        assert!(matches!(result, Err(QueryError::InvalidQuery { .. })));
-    }
-
-    #[test]
     fn an_in_with_no_value_is_empty_once_its_name_is_checked() {
         let plan = |field: &[u8]| {
-            Plan::try_from(&Filter::In {
-                field: CellNameRef::raw(field).into(),
-                values: vec![],
-            })
+            Plan::try_from(
+                &Filter::try_in(CellNameRef::raw(field).into(), vec![])
+                    .expect("empty In is single-typed"),
+            )
         };
         assert_eq!(plan(b"f").expect("valid In"), Plan::Empty);
         for field in [&b"1bad"[..], &[0xff]] {
@@ -270,11 +238,8 @@ mod tests {
         let field: CellName = CellNameRef::raw(b"f").into();
         let (low, high) = (CellValue::from_i64(-5), CellValue::from_i64(5));
         let plan = |lower: Bound<&CellValue>, upper: Bound<&CellValue>| {
-            let filter = Filter::Range {
-                field: field.clone(),
-                lower: lower.cloned(),
-                upper: upper.cloned(),
-            };
+            let filter = Filter::try_range(field.clone(), lower.cloned(), upper.cloned())
+                .expect("single-typed bounds");
             Plan::try_from(&filter).expect("valid Range")
         };
         for (lower, upper) in [

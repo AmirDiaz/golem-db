@@ -5,9 +5,10 @@ mod support;
 
 use std::collections::BTreeMap;
 
-use golemdb_api::{ApiError, RecordKey};
+use golemdb_api::{ApiError, Filter, RecordKey};
 use golemdb_cells::{CellType, CellValue};
 use golemdb_index::TermError;
+use golemdb_query::QueryError;
 use proptest::prelude::*;
 use support::{TestDb, eq, is_in, key, record, small_value, small_values_of_one_type};
 
@@ -57,27 +58,20 @@ fn other_types_under_the_same_name_are_absent() {
 }
 
 #[test]
-fn malformed_in_is_an_invalid_query() {
-    let test = TestDb::default();
-    test.create([record(key(1), &[("f", CellValue::from_i32(1))])]);
-    for filter in [
-        is_in("f", [CellValue::from_i32(1), CellValue::from_i64(1)]),
+fn malformed_in_is_rejected_at_construction() {
+    let field = support::field_name(b"f");
+    // A mixed list does not become a filter, so no query runs.
+    for values in [
+        vec![CellValue::from_i32(1), CellValue::from_i64(1)],
         // Mixed types are reported before a value with no term.
-        is_in("f", [str("x"), CellValue::from_bytes(b"x")]),
+        vec![str("x"), CellValue::from_bytes(b"x")],
     ] {
         assert!(
             matches!(
-                test.keys(filter.clone()),
-                Err(ApiError::InvalidQuery { .. })
+                Filter::try_in(field.clone(), values.clone()),
+                Err(QueryError::InvalidQuery { .. })
             ),
-            "{filter:?}"
-        );
-        assert!(
-            matches!(
-                test.count(filter.clone()),
-                Err(ApiError::InvalidQuery { .. })
-            ),
-            "{filter:?}"
+            "{values:?}"
         );
     }
 }

@@ -8,7 +8,7 @@ mod page;
 mod sort;
 
 pub use budget::Budget;
-pub use filter::Filter;
+pub use filter::{Filter, InValues, IntoCellValue, RangeBounds};
 pub use op::{CountOp, QueryOp};
 pub use page::QueryPage;
 pub use sort::{Direction, SortKey};
